@@ -25,6 +25,12 @@
 #include <zmk/ble.h>
 #endif
 
+// ▼▼▼ この3行を追記します ▼▼▼
+#if !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#define CONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS 0
+#endif
+// ▲▲▲ ここまで ▲▲▲
+
 /* ── Profile count ──────────────────────────────────────────────────────── */
 
 #if IS_ENABLED(CONFIG_ZMK_BLE)
