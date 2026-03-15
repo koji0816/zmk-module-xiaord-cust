@@ -140,9 +140,11 @@ static int page_home_create(lv_obj_t *tile)
 		periph_bat_lbls[i] = lbl;
 	}
 
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 	endpoint_status_register_cb(home_endpoint_cb);
 	battery_status_init(periph_bat_arcs, periph_bat_lbls);
-
+#endif
+	
 	/* ── Button ring ─────────────────────────────────────────────────── */
 	home_buttons_create(tile);
 
