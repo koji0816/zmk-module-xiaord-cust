@@ -8,6 +8,7 @@
  */
 
 #include <zephyr/kernel.h>
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)   // ← これを一番上に追記
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -88,3 +89,5 @@ void battery_status_init(lv_obj_t **arcs, lv_obj_t **lbls)
 
 	periph_battery_init();
 }
+
+#endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) */  // ← これを一番下に追記
