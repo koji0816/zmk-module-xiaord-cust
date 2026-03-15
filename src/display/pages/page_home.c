@@ -4,6 +4,12 @@
  * Home screen: date/time labels (upper half) + peripheral battery arc gauges
  * (lower half) + icon buttons (delegated to home_buttons.c).
  */
+#include <zephyr/kernel.h>
+
+#if !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#define ZMK_SPLIT_BLE_PERIPHERAL_COUNT 0
+#define ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT 0
+#endif
 
 #include <zephyr/device.h>
 #include <zephyr/drivers/rtc.h>
