@@ -14,6 +14,8 @@ zephyr_include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 zephyr_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/listeners)
 zephyr_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ui)
 
+zephyr_library_sources_ifdef(CONFIG_PROSPECTOR_MODE_SCANNER scanner_stub.c)
+
 add_subdirectory(listeners)
 add_subdirectory(ui)
 add_subdirectory(pages)
