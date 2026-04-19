@@ -15,16 +15,16 @@
 
     xiaord_mock_kscan: mock_kscan_0 {
         compatible = "zmk,kscan-mock";
-        columns = <0>;
-        rows = <0>;
+        columns = <1>;
+        rows = <1>;
         events = <0>;
     };
 
     xiaord_default_transform: keymap_transform_0 {
         compatible = "zmk,matrix-transform";
-        columns = <0>;
-        rows = <0>;
-        map = < >;
+        columns = <1>;
+        rows = <1>;
+        map = < RC(0,0) >;
     };
 
     xiaord_physical_layout0: physical_layout_0 {
