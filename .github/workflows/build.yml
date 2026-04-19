@@ -1,0 +1,43 @@
+name: Build Test
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    steps:
+      - name: Checkout module
+        uses: actions/checkout@v4
+        with:
+          path: xiaord-cust
+
+      - name: Initialize ZMK Workspace
+        run: |
+          west init -m https://github.com/zmkfirmware/zmk --mr main zmk-workspace
+          cd zmk-workspace
+          west update
+          west zephyr-export
+
+      - name: Clone Prospector Module
+        run: |
+          cd zmk-workspace
+          git clone -b v2.2b https://github.com/t-ogura/prospector-zmk-module modules/prospector-zmk-module
+
+      - name: Build XIAO Round Display
+        run: |
+          cd zmk-workspace
+          west build -s app -b seeeduino_xiao_ble -- -DSHIELD=xiaord "-DZMK_EXTRA_MODULES=${GITHUB_WORKSPACE}/xiaord-cust;${GITHUB_WORKSPACE}/zmk-workspace/modules/prospector-zmk-module"
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaord-firmware
+          path: zmk-workspace/build/zephyr/zmk.uf2
