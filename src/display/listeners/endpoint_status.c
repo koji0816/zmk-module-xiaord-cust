@@ -10,7 +10,7 @@
  */
 
 #include <zephyr/kernel.h>
-#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)   // ← これを一番上に追記
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) || IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -136,4 +136,4 @@ lv_obj_t *create_output_status_label(lv_obj_t *parent, const lv_font_t *font)
 	}
 	return lbl;
 }
-#endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) */  // ← これを一番下に追記
+#endif /* IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) || IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER) */

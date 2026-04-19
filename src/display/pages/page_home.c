@@ -6,9 +6,12 @@
  */
 #include <zephyr/kernel.h>
 
-#if !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
-#define ZMK_SPLIT_BLE_PERIPHERAL_COUNT 0
-#define ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT 0
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+#define BATTERY_ARC_COUNT 2
+#elif IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#define BATTERY_ARC_COUNT ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT
+#else
+#define BATTERY_ARC_COUNT 0
 #endif
 
 #include <zephyr/device.h>
@@ -93,10 +96,10 @@ static int page_home_create(lv_obj_t *tile)
 	lv_obj_align(s_output_lbl, LV_ALIGN_BOTTOM_MID, 0, -37);
 
 	/* ── Peripheral battery arc gauges — lower half ─────────────────── */
-	lv_obj_t *periph_bat_arcs[ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT];
-	lv_obj_t *periph_bat_lbls[ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT];
+	lv_obj_t *periph_bat_arcs[BATTERY_ARC_COUNT > 0 ? BATTERY_ARC_COUNT : 1];
+	lv_obj_t *periph_bat_lbls[BATTERY_ARC_COUNT > 0 ? BATTERY_ARC_COUNT : 1];
 
-	const int n_periph     = ZMK_SPLIT_CENTRAL_PERIPHERAL_COUNT;
+	const int n_periph     = BATTERY_ARC_COUNT;
 	const int spacing      = 74;
 	const int arc_sz       = 48;
 	const int center_y_off = 34;
@@ -140,7 +143,7 @@ static int page_home_create(lv_obj_t *tile)
 		periph_bat_lbls[i] = lbl;
 	}
 
-#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) || IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
 	endpoint_status_register_cb(home_endpoint_cb);
 	battery_status_init(periph_bat_arcs, periph_bat_lbls);
 #endif
