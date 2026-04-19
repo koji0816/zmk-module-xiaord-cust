@@ -21,8 +21,9 @@ jobs:
 
       - name: Initialize ZMK Workspace
         run: |
-          west init -m https://github.com/zmkfirmware/zmk --mr main zmk-workspace
+          git clone https://github.com/zmkfirmware/zmk.git zmk-workspace
           cd zmk-workspace
+          west init -l app/
           west update
           west zephyr-export
 
