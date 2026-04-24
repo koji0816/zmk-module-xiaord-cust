@@ -64,5 +64,7 @@ static int scanner_init_start(void) {
     return 0;
 }
 
-/* Priority 100 — AFTER status_scanner_init (priority 99) */
-SYS_INIT(scanner_init_start, APPLICATION, 100);
+/* Same priority as status_scanner_init (99) is fine because the actual
+ * zmk_status_scanner_start() call is deferred by 500ms via k_work_schedule,
+ * by which time all SYS_INIT callbacks have long completed. */
+SYS_INIT(scanner_init_start, APPLICATION, 99);
