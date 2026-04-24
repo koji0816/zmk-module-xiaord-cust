@@ -35,7 +35,7 @@ jobs:
       - name: Build XIAO Round Display
         run: |
           cd zmk-workspace
-          west build -s app -b xiao_ble -- -DSHIELD=xiaord "-DZMK_EXTRA_MODULES=${GITHUB_WORKSPACE}/xiaord-cust;${GITHUB_WORKSPACE}/zmk-workspace/modules/prospector-zmk-module"
+          west build -s app -b xiao_ble -- -DSHIELD=xiaord -DSNIPPET=zmk-usb-logging "-DZMK_EXTRA_MODULES=${GITHUB_WORKSPACE}/xiaord-cust;${GITHUB_WORKSPACE}/zmk-workspace/modules/prospector-zmk-module"
 
       - name: Archive artifacts
         uses: actions/upload-artifact@v4

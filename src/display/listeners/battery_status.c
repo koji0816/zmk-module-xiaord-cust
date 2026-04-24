@@ -33,7 +33,9 @@ BUILD_ASSERT(IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING),
 static lv_obj_t *s_bat_arc[BATTERY_ARC_COUNT > 0 ? BATTERY_ARC_COUNT : 1];
 static lv_obj_t *s_bat_lbl[BATTERY_ARC_COUNT > 0 ? BATTERY_ARC_COUNT : 1];
 
-/* ── ZMK listener ───────────────────────────────────────────────────────── */
+/* ── ZMK listener (Central mode only) ──────────────────────────────────── */
+
+#if !IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
 
 struct periph_bat_state {
 	uint8_t level[BATTERY_ARC_COUNT > 0 ? BATTERY_ARC_COUNT : 1];
@@ -87,10 +89,15 @@ ZMK_DISPLAY_WIDGET_LISTENER(periph_battery, struct periph_bat_state,
 ZMK_SUBSCRIPTION(periph_battery, zmk_peripheral_battery_state_changed);
 #endif
 
-/* ── Public init ────────────────────────────────────────────────────────── */
+#endif /* !CONFIG_PROSPECTOR_MODE_SCANNER */
+
+/* ── Scanner mode: LVGL timer based polling ────────────────────────────── */
 
 #if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
-static void scanner_update_cb(struct zmk_status_scanner_event_data *event_data)
+
+static lv_timer_t *s_scanner_poll_timer;
+
+static void scanner_poll_timer_cb(lv_timer_t *timer)
 {
 	for (int i = 0; i < BATTERY_ARC_COUNT; i++) {
 		struct zmk_keyboard_status *kb = zmk_status_scanner_get_keyboard(i);
@@ -106,7 +113,10 @@ static void scanner_update_cb(struct zmk_status_scanner_event_data *event_data)
 		}
 	}
 }
-#endif
+
+#endif /* CONFIG_PROSPECTOR_MODE_SCANNER */
+
+/* ── Public init ────────────────────────────────────────────────────────── */
 
 void battery_status_init(lv_obj_t **arcs, lv_obj_t **lbls)
 {
@@ -116,8 +126,11 @@ void battery_status_init(lv_obj_t **arcs, lv_obj_t **lbls)
 	}
 
 #if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
-	zmk_status_scanner_register_callback(scanner_update_cb);
-	scanner_update_cb(NULL);
+	/* Poll scanner data every 2 seconds from the LVGL thread.
+	 * This is thread-safe because LVGL timers run in the display
+	 * work queue context, same thread that owns LVGL widgets. */
+	s_scanner_poll_timer = lv_timer_create(scanner_poll_timer_cb, 2000, NULL);
+	scanner_poll_timer_cb(NULL); /* initial update */
 #else
 	periph_battery_init();
 #endif

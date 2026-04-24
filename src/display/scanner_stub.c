@@ -64,5 +64,5 @@ static int scanner_init_start(void) {
     return 0;
 }
 
-/* Priority 98 — after status_scanner_init (priority 99) */
-SYS_INIT(scanner_init_start, APPLICATION, 98);
+/* Priority 100 — AFTER status_scanner_init (priority 99) */
+SYS_INIT(scanner_init_start, APPLICATION, 100);

@@ -17,7 +17,9 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/rtc.h>
 #include <lvgl.h>
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 #include <zmk/split/central.h>
+#endif
 #include "page_iface.h"
 #include "display_api.h"
 #include "endpoint_status.h"
