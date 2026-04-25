@@ -95,10 +95,7 @@ void ss_fire_behavior(input_virtual_code code)
 static void xiaord_initialize_color_theme(void)
 {
 	lv_display_t *disp = lv_display_get_default();
-	/* Touch coordinate transformation via LVGL rotation.
-	 * Hardware rotation is intentionally not used to prevent double-rotation mismatch.
-	 * LV_DISPLAY_ROTATION_180 rotates 0 (Type-C Right) to Type-C Bottom. */
-	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180);
+	/* Display rotation is handled via devicetree orientation-rotate = <90>. */
 
 	lv_theme_t *theme = lv_theme_default_init(
 		disp,
