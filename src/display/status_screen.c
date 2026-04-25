@@ -93,9 +93,7 @@ static void xiaord_initialize_color_theme(void)
 {
 	lv_display_t *disp = lv_display_get_default();
 
-	/* Touch coordinate transformation via LVGL rotation.
-	 * Hardware rotation is intentionally not used to prevent double-rotation mismatch. */
-	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_270);
+	/* No rotation: physical default (Type-C Bottom) */
 
 	lv_theme_t *theme = lv_theme_default_init(
 		disp,
