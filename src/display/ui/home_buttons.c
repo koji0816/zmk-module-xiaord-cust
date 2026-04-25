@@ -15,15 +15,14 @@
 #include "page_iface.h"
 #include "display_api.h"
 #include "ui_btn.h"
-#include "sym_lookup.h"
 #include "home_buttons.h"
 
 /* ── Button descriptor ─────────────────────────────────────────────────── */
 
 struct circle_btn_desc {
-	uint16_t sym_code;  /* INPUT_VIRTUAL_SYM_* for icon lookup */
-	uint16_t code;      /* virtual code for ss_fire_behavior */
+	uint32_t symbol_cp; /* Unicode codepoint for icon */
 	int8_t   nav_page;  /* >=0: navigate on tap; -1: no nav */
+	bool     dismiss;   /* true: hide buttons on tap */
 	bool     active;    /* true if this slot is populated */
 };
 
@@ -37,16 +36,12 @@ struct circle_btn_desc {
 	COND_CODE_1(DT_NODE_HAS_PROP(node, nav_page), \
 		(DT_PROP(node, nav_page)), (-1))
 
-#define BTN_SYM(node) \
-	COND_CODE_1(DT_NODE_HAS_PROP(node, symbol), \
-		(DT_PROP(node, symbol)), (DT_PROP(node, code)))
-
 #define BTN_INIT(node) \
 	[DT_PROP(node, position)] = { \
-		.sym_code = BTN_SYM(node), \
-		.code     = DT_PROP(node, code), \
-		.nav_page = BTN_NAV(node), \
-		.active   = true, \
+		.symbol_cp = DT_PROP(node, symbol), \
+		.nav_page  = BTN_NAV(node), \
+		.dismiss   = DT_PROP_OR(node, dismiss, false), \
+		.active    = true, \
 	},
 
 static const struct circle_btn_desc s_circle_btns[12] = {
@@ -55,19 +50,21 @@ static const struct circle_btn_desc s_circle_btns[12] = {
 
 #else /* fallback: built-in 12-button layout */
 
+#include <dt-bindings/xiaord/icons.h>
+
 static const struct circle_btn_desc s_circle_btns[12] = {
-	{ INPUT_VIRTUAL_SYM_UPLOAD,     INPUT_VIRTUAL_SYM_UPLOAD,     -1,         true },
-	{ INPUT_VIRTUAL_SYM_POWER,      INPUT_VIRTUAL_SYM_POWER,      -1,         true },
-	{ INPUT_VIRTUAL_SYM_VOLUME_MAX, INPUT_VIRTUAL_SYM_VOLUME_MAX, -1,         true },
-	{ INPUT_VIRTUAL_SYM_MUTE,       INPUT_VIRTUAL_SYM_MUTE,       -1,         true },
-	{ INPUT_VIRTUAL_SYM_VOLUME_MID, INPUT_VIRTUAL_SYM_VOLUME_MID, -1,         true },
-	{ INPUT_VIRTUAL_SYM_PLUS,       INPUT_VIRTUAL_SYM_PLUS,       -1,         true },
-	{ INPUT_VIRTUAL_SYM_MINUS,      INPUT_VIRTUAL_SYM_MINUS,      -1,         true },
-	{ INPUT_VIRTUAL_SYM_EYE_CLOSE,  INPUT_VIRTUAL_SYM_EYE_CLOSE,  -1,         true },
-	{ INPUT_VIRTUAL_SYM_USB,        INPUT_VIRTUAL_SYM_USB,        -1,         true },
-	{ INPUT_VIRTUAL_SYM_BLUETOOTH,  INPUT_VIRTUAL_SYM_BLUETOOTH,  PAGE_BT,    true },
-	{ INPUT_VIRTUAL_SYM_HOME,       INPUT_VIRTUAL_SYM_HOME,       -1,         true },
-	{ INPUT_VIRTUAL_SYM_SETTINGS,   INPUT_VIRTUAL_SYM_SETTINGS,   PAGE_CLOCK, true },
+	{ ICON_UPLOAD,     -1,         false, true },
+	{ ICON_IMAGE,      -1,         false, true },
+	{ ICON_VOLUME_MAX, -1,         false, true },
+	{ ICON_MUTE,       -1,         false, true },
+	{ ICON_VOLUME_MID, -1,         false, true },
+	{ ICON_NEXT,       -1,         false, true },
+	{ ICON_PLAY,       -1,         false, true },
+	{ ICON_PREV,       -1,         false, true },
+	{ ICON_WARNING,    -1,         false, true },
+	{ ICON_USB,        -1,         false, true },
+	{ ICON_BLUETOOTH,  PAGE_BT,    false, true },
+	{ ICON_SETTINGS,   PAGE_CLOCK, false, true },
 };
 
 #endif /* DT_HAS_COMPAT_STATUS_OKAY(xiaord_home_buttons) */
@@ -95,7 +92,7 @@ static void autohide_timer_cb(lv_timer_t *t)
 static void repeat_timer_cb(lv_timer_t *t)
 {
 	ARG_UNUSED(t);
-	ss_fire_behavior(s_circle_btns[s_repeat_idx].code);
+	ss_fire_behavior(INPUT_VIRTUAL_POS_0 + s_repeat_idx);
 	if (!s_repeat_fired) {
 		s_repeat_fired = true;
 		lv_timer_set_period(t, 60);
@@ -121,10 +118,10 @@ static void circle_btn_cb(lv_event_t *e)
 	if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
 		lv_timer_pause(s_repeat_timer);
 		if (!s_repeat_fired) {
-			ss_fire_behavior(s_circle_btns[idx].code);
+			ss_fire_behavior(INPUT_VIRTUAL_POS_0 + idx);
 			if (s_circle_btns[idx].nav_page >= 0)
 				ss_navigate_to(s_circle_btns[idx].nav_page);
-			if (s_circle_btns[idx].code == INPUT_VIRTUAL_SYM_HOME)
+			if (s_circle_btns[idx].dismiss)
 				home_buttons_set_visible(false);
 		}
 	}
@@ -174,6 +171,31 @@ void home_buttons_pause(void)
 	lv_timer_pause(s_autohide_timer);
 }
 
+static void unicode_to_utf8(uint32_t cp, char *out)
+{
+	if (cp <= 0x7F) {
+		out[0] = (char)cp;
+		out[1] = '\0';
+	} else if (cp <= 0x7FF) {
+		out[0] = (char)(0xC0 | (cp >> 6));
+		out[1] = (char)(0x80 | (cp & 0x3F));
+		out[2] = '\0';
+	} else if (cp <= 0xFFFF) {
+		out[0] = (char)(0xE0 | (cp >> 12));
+		out[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		out[2] = (char)(0x80 | (cp & 0x3F));
+		out[3] = '\0';
+	} else if (cp <= 0x10FFFF) {
+		out[0] = (char)(0xF0 | (cp >> 18));
+		out[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+		out[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+		out[3] = (char)(0x80 | (cp & 0x3F));
+		out[4] = '\0';
+	} else {
+		out[0] = '\0';
+	}
+}
+
 void home_buttons_create(lv_obj_t *parent)
 {
 	/* Tap overlay — full-tile, behind buttons */
@@ -191,13 +213,15 @@ void home_buttons_create(lv_obj_t *parent)
 	ui_circle_12_positions(pos, UI_CIRCLE_LAYOUT_RADIUS);
 	s_btns_visible = false;
 
+	static char icon_bufs[12][5]; /* UTF-8: max 4 bytes + null */
+
 	for (int i = 0; i < 12; i++) {
 		if (!s_circle_btns[i].active) {
 			s_circle_btn_objs[i] = NULL;
 			continue;
 		}
-		const char *sym = sym_code_to_str(s_circle_btns[i].sym_code);
-		lv_obj_t *btn = ui_create_circle_btn(parent, sym,
+		unicode_to_utf8(s_circle_btns[i].symbol_cp, icon_bufs[i]);
+		lv_obj_t *btn = ui_create_circle_btn(parent, icon_bufs[i],
 						      pos[i][0], pos[i][1],
 						      circle_btn_cb,
 						      (void *)(uintptr_t)i);
