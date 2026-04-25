@@ -82,8 +82,11 @@ void ss_navigate_to(uint8_t page_idx)
 
 void ss_fire_behavior(input_virtual_code code)
 {
+	if (!device_is_ready(s_vkey)) {
+		return;
+	}
 	input_report(s_vkey, INPUT_EV_ZMK_BEHAVIORS, code, 1, true, K_NO_WAIT);
-	k_sleep(K_MSEC(10));
+	k_sleep(K_MSEC(20));
 	input_report(s_vkey, INPUT_EV_ZMK_BEHAVIORS, code, 0, true, K_NO_WAIT);
 }
 
@@ -92,8 +95,10 @@ void ss_fire_behavior(input_virtual_code code)
 static void xiaord_initialize_color_theme(void)
 {
 	lv_display_t *disp = lv_display_get_default();
-
-	/* No rotation: physical default (Type-C Bottom) */
+	/* Touch coordinate transformation via LVGL rotation.
+	 * Hardware rotation is intentionally not used to prevent double-rotation mismatch.
+	 * LV_DISPLAY_ROTATION_180 rotates 0 (Type-C Right) to Type-C Bottom. */
+	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180);
 
 	lv_theme_t *theme = lv_theme_default_init(
 		disp,
