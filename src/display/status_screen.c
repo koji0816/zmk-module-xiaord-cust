@@ -83,6 +83,7 @@ void ss_navigate_to(uint8_t page_idx)
 void ss_fire_behavior(input_virtual_code code)
 {
 	input_report(s_vkey, INPUT_EV_ZMK_BEHAVIORS, code, 1, true, K_NO_WAIT);
+	k_sleep(K_MSEC(10));
 	input_report(s_vkey, INPUT_EV_ZMK_BEHAVIORS, code, 0, true, K_NO_WAIT);
 }
 
@@ -92,16 +93,9 @@ static void xiaord_initialize_color_theme(void)
 {
 	lv_display_t *disp = lv_display_get_default();
 
-	/* Hardware rotation: called here (after LVGL init) so disp_data->cap is
-	 * captured with NORMAL orientation, letting lv_display_set_rotation below
-	 * handle touch coordinate transformation without Zephyr driver interference. */
-	const struct device *display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
-	if (device_is_ready(display_dev)) {
-		display_set_orientation(display_dev, DISPLAY_ORIENTATION_ROTATED_180);
-	}
-
-	/* Touch coordinate transformation via LVGL rotation. */
-	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180);
+	/* Touch coordinate transformation via LVGL rotation.
+	 * Hardware rotation is intentionally not used to prevent double-rotation mismatch. */
+	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_270);
 
 	lv_theme_t *theme = lv_theme_default_init(
 		disp,
