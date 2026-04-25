@@ -97,11 +97,11 @@ static void xiaord_initialize_color_theme(void)
 	 * handle touch coordinate transformation without Zephyr driver interference. */
 	const struct device *display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	if (device_is_ready(display_dev)) {
-		display_set_orientation(display_dev, DISPLAY_ORIENTATION_ROTATED_90);
+		display_set_orientation(display_dev, DISPLAY_ORIENTATION_ROTATED_180);
 	}
 
 	/* Touch coordinate transformation via LVGL rotation. */
-	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);
+	lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_180);
 
 	lv_theme_t *theme = lv_theme_default_init(
 		disp,
