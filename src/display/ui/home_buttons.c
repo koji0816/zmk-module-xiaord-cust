@@ -11,6 +11,8 @@
 
 #include <zephyr/kernel.h>
 #include <lvgl.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <dt-bindings/xiaord/input_codes.h>
 #include "page_iface.h"
 #include "display_api.h"
@@ -118,6 +120,8 @@ static void circle_btn_cb(lv_event_t *e)
 	if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
 		lv_timer_pause(s_repeat_timer);
 		if (!s_repeat_fired) {
+			LOG_INF("circle_btn_cb: idx=%d code=0x%02X",
+				idx, INPUT_VIRTUAL_POS_0 + idx);
 			ss_fire_behavior(INPUT_VIRTUAL_POS_0 + idx);
 			if (s_circle_btns[idx].nav_page >= 0)
 				ss_navigate_to(s_circle_btns[idx].nav_page);
