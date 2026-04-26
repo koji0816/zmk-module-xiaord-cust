@@ -115,10 +115,13 @@ static void cb_time_ok(lv_event_t *e)
 		.tm_wday = day_of_week(year, mon, day),
 	};
 
-	int err = rtc_set_time(s_rtc, &rt);
-
-	if (err < 0) {
-		LOG_ERR("rtc_set_time failed: %d", err);
+	if (device_is_ready(s_rtc)) {
+		int err = rtc_set_time(s_rtc, &rt);
+		if (err < 0) {
+			LOG_ERR("rtc_set_time failed: %d", err);
+		}
+	} else {
+		LOG_WRN("RTC device not ready, cannot set time");
 	}
 
 	ss_navigate_to(PAGE_HOME);
@@ -244,12 +247,14 @@ static void page_clock_enter(void)
 	struct rtc_time rt;
 	int hour = 0, min = 0, year = 2026, mon = 1, day = 1;
 
-	if (rtc_get_time(s_rtc, &rt) == 0) {
+	if (device_is_ready(s_rtc) && rtc_get_time(s_rtc, &rt) == 0) {
 		hour = rt.tm_hour;
 		min  = rt.tm_min;
 		year = rt.tm_year + 1900;
 		mon  = rt.tm_mon + 1;
 		day  = rt.tm_mday;
+	} else {
+		LOG_WRN("RTC device not ready or get_time failed");
 	}
 
 	if (year < 2024) {

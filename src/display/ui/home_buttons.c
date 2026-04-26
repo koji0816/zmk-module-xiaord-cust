@@ -34,9 +34,7 @@ struct circle_btn_desc {
 
 #define HOME_BTN_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(xiaord_home_buttons)
 
-#define BTN_NAV(node) \
-	COND_CODE_1(DT_NODE_HAS_PROP(node, nav_page), \
-		(DT_PROP(node, nav_page)), (-1))
+#define BTN_NAV(node) DT_PROP_OR(node, nav_page, -1)
 
 #define BTN_INIT(node) \
 	[DT_PROP(node, position)] = { \
@@ -120,8 +118,8 @@ static void circle_btn_cb(lv_event_t *e)
 	if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
 		lv_timer_pause(s_repeat_timer);
 		if (!s_repeat_fired) {
-			LOG_INF("circle_btn_cb: idx=%d code=0x%02X",
-				idx, INPUT_VIRTUAL_POS_0 + idx);
+			LOG_INF("circle_btn_cb: idx=%d code=0x%02X nav=%d",
+				idx, INPUT_VIRTUAL_POS_0 + idx, s_circle_btns[idx].nav_page);
 			ss_fire_behavior(INPUT_VIRTUAL_POS_0 + idx);
 			if (s_circle_btns[idx].nav_page >= 0)
 				ss_navigate_to(s_circle_btns[idx].nav_page);
