@@ -12,7 +12,6 @@
         zmk,kscan = &xiaord_mock_kscan;
         zmk,physical-layout = &xiaord_physical_layout0;
         zephyr,display = &gc9a01_xiao_round_display;
-        zmk,display-led = &display_backlight;
     };
 
     xiaord_mock_kscan: mock_kscan_0 {
@@ -125,12 +124,3 @@
     pinctrl-names = "default", "sleep";
 };
 
-/ {
-    backlight: pwm_leds {
-        compatible = "pwm-leds";
-        display_backlight: led_0 {
-            pwms = <&pwm1 0 PWM_USEC(100) PWM_POLARITY_NORMAL>;
-            label = "Backlight LED";
-        };
-    };
-};

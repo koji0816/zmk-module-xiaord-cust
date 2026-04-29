@@ -144,41 +144,55 @@ lv_obj_t *zmk_display_status_screen(void)
 
 	/* Return the first screen — ZMK calls lv_scr_load() on this */
 	return s_pages[0].screen;
-}
 /*
- * Display backlight brightness override.
+ * Display backlight brightness control — direct PWM approach.
  *
- * ZMK's display/main.c calls led_on() when unblanking the display, which
- * sets brightness to 100%.  We use a delayed work item to call
- * led_set_brightness() AFTER that led_on() has fired, bringing it down to 75%.
+ * Pin P1.11 (XIAO D6) controls the display backlight.
+ * We configure it as GPIO first (to ensure the display is lit),
+ * then switch to PWM1 channel 0 to dim to 75%.
  */
-#include <zephyr/drivers/led.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/drivers/gpio.h>
 
-#if DT_HAS_CHOSEN(zmk_display_led)
+#define BACKLIGHT_PORT  1
+#define BACKLIGHT_PIN   11
+#define BACKLIGHT_BRIGHTNESS 75 /* percent */
 
-#define DISPLAY_BL_BRIGHTNESS 75  /* percent (0-100) */
+/* PWM period = 100 µs (10 kHz) — well above visible flicker threshold */
+#define BL_PWM_PERIOD_US 100
 
-static const struct device *bl_dev = DEVICE_DT_GET(DT_PARENT(DT_CHOSEN(zmk_display_led)));
-static const uint8_t bl_idx = DT_NODE_CHILD_IDX(DT_CHOSEN(zmk_display_led));
-
-static void set_backlight_brightness_work_cb(struct k_work *work)
+static void backlight_init_work_cb(struct k_work *work)
 {
-	if (device_is_ready(bl_dev)) {
-		led_set_brightness(bl_dev, bl_idx, DISPLAY_BL_BRIGHTNESS);
-		LOG_INF("Backlight set to %d%%", DISPLAY_BL_BRIGHTNESS);
+	/* Step 1: Ensure the backlight is ON via GPIO (fallback) */
+	const struct device *gpio1 = DEVICE_DT_GET(DT_NODELABEL(gpio1));
+	if (device_is_ready(gpio1)) {
+		gpio_pin_configure(gpio1, BACKLIGHT_PIN,
+				   GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_HIGH);
+		LOG_INF("Backlight GPIO P1.%d set HIGH", BACKLIGHT_PIN);
+	}
+
+	/* Step 2: Switch pin to PWM control for brightness dimming */
+	const struct device *pwm = DEVICE_DT_GET(DT_NODELABEL(pwm1));
+	if (device_is_ready(pwm)) {
+		uint32_t period = PWM_USEC(BL_PWM_PERIOD_US);
+		uint32_t pulse = period * BACKLIGHT_BRIGHTNESS / 100;
+		int rc = pwm_set(pwm, 0, period, pulse, 0);
+		if (rc == 0) {
+			LOG_INF("Backlight PWM set to %d%% (period=%u pulse=%u)",
+				BACKLIGHT_BRIGHTNESS, period, pulse);
+		} else {
+			LOG_ERR("Backlight PWM failed: %d (staying at GPIO 100%%)", rc);
+		}
 	} else {
-		LOG_WRN("Backlight device not ready");
+		LOG_WRN("PWM1 not ready — backlight stays at 100%% via GPIO");
 	}
 }
-static K_WORK_DELAYABLE_DEFINE(bl_brightness_work, set_backlight_brightness_work_cb);
+static K_WORK_DELAYABLE_DEFINE(bl_init_work, backlight_init_work_cb);
 
-static int schedule_backlight_override(void)
+static int schedule_backlight_init(void)
 {
-	/* Delay 500 ms so ZMK's unblank_display_cb / led_on() finishes first */
-	k_work_schedule(&bl_brightness_work, K_MSEC(500));
+	/* Delay 500 ms to ensure display subsystem is initialized */
+	k_work_schedule(&bl_init_work, K_MSEC(500));
 	return 0;
 }
-SYS_INIT(schedule_backlight_override, APPLICATION, 99);
-
-#endif /* DT_HAS_CHOSEN(zmk_display_led) */
-
+SYS_INIT(schedule_backlight_init, APPLICATION, 99);
