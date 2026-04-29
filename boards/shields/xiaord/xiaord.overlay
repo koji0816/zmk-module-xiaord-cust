@@ -100,6 +100,8 @@
         };
     };
 
+};
+
 #include <dt-bindings/pinctrl/nrf-pinctrl.h>
 
 &pinctrl {
