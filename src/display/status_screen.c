@@ -149,8 +149,8 @@ lv_obj_t *zmk_display_status_screen(void)
 #include <zmk/backlight.h>
 static int force_backlight_brightness(void)
 {
-	/* Force the backlight to 75%, overriding any saved settings */
-	zmk_backlight_set_brt(75);
+	/* Force the backlight to 50%, overriding any saved settings */
+	zmk_backlight_set_brt(50);
 	return 0;
 }
 /* Run after APPLICATION initialization (priority 90) so ZMK Backlight has already loaded settings */
