@@ -144,6 +144,8 @@ lv_obj_t *zmk_display_status_screen(void)
 
 	/* Return the first screen — ZMK calls lv_scr_load() on this */
 	return s_pages[0].screen;
+}
+
 /*
  * Display backlight brightness control — direct PWM approach.
  *
