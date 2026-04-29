@@ -145,3 +145,13 @@ lv_obj_t *zmk_display_status_screen(void)
 	/* Return the first screen — ZMK calls lv_scr_load() on this */
 	return s_pages[0].screen;
 }
+
+#include <zmk/backlight.h>
+static int force_backlight_brightness(void)
+{
+	/* Force the backlight to 75%, overriding any saved settings */
+	zmk_backlight_set_brt(75);
+	return 0;
+}
+/* Run after APPLICATION initialization (priority 90) so ZMK Backlight has already loaded settings */
+SYS_INIT(force_backlight_brightness, APPLICATION, 99);
