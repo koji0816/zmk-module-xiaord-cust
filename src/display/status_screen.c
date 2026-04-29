@@ -150,51 +150,46 @@ lv_obj_t *zmk_display_status_screen(void)
  * Display backlight brightness control — direct PWM approach.
  *
  * Pin P1.11 (XIAO D6) controls the display backlight.
- * We configure it as GPIO first (to ensure the display is lit),
- * then switch to PWM1 channel 0 to dim to 75%.
+ * The PWM1 peripheral is configured via devicetree pinctrl to drive this pin.
+ * We MUST NOT call gpio_pin_configure() on P1.11 — that would disconnect the
+ * pin from PWM and reconnect it to GPIO, making dimming impossible.
+ *
+ * The PWM starts outputting immediately at the requested duty cycle,
+ * which both turns on the backlight AND dims it to the target brightness.
  */
 #include <zephyr/drivers/pwm.h>
-#include <zephyr/drivers/gpio.h>
 
-#define BACKLIGHT_PORT  1
-#define BACKLIGHT_PIN   11
-#define BACKLIGHT_BRIGHTNESS 75 /* percent */
+#define BACKLIGHT_BRIGHTNESS 75 /* percent (0 = off, 100 = full) */
 
 /* PWM period = 100 µs (10 kHz) — well above visible flicker threshold */
 #define BL_PWM_PERIOD_US 100
 
 static void backlight_init_work_cb(struct k_work *work)
 {
-	/* Step 1: Ensure the backlight is ON via GPIO (fallback) */
-	const struct device *gpio1 = DEVICE_DT_GET(DT_NODELABEL(gpio1));
-	if (device_is_ready(gpio1)) {
-		gpio_pin_configure(gpio1, BACKLIGHT_PIN,
-				   GPIO_OUTPUT_ACTIVE | GPIO_ACTIVE_HIGH);
-		LOG_INF("Backlight GPIO P1.%d set HIGH", BACKLIGHT_PIN);
+	const struct device *pwm = DEVICE_DT_GET(DT_NODELABEL(pwm1));
+
+	if (!device_is_ready(pwm)) {
+		LOG_ERR("PWM1 device not ready — backlight OFF");
+		return;
 	}
 
-	/* Step 2: Switch pin to PWM control for brightness dimming */
-	const struct device *pwm = DEVICE_DT_GET(DT_NODELABEL(pwm1));
-	if (device_is_ready(pwm)) {
-		uint32_t period = PWM_USEC(BL_PWM_PERIOD_US);
-		uint32_t pulse = period * BACKLIGHT_BRIGHTNESS / 100;
-		int rc = pwm_set(pwm, 0, period, pulse, 0);
-		if (rc == 0) {
-			LOG_INF("Backlight PWM set to %d%% (period=%u pulse=%u)",
-				BACKLIGHT_BRIGHTNESS, period, pulse);
-		} else {
-			LOG_ERR("Backlight PWM failed: %d (staying at GPIO 100%%)", rc);
-		}
+	uint32_t period = PWM_USEC(BL_PWM_PERIOD_US);
+	uint32_t pulse  = period * BACKLIGHT_BRIGHTNESS / 100;
+	int rc = pwm_set(pwm, 0, period, pulse, 0);
+
+	if (rc == 0) {
+		LOG_INF("Backlight: PWM OK — brightness=%d%% period=%u ns pulse=%u ns",
+			BACKLIGHT_BRIGHTNESS, period, pulse);
 	} else {
-		LOG_WRN("PWM1 not ready — backlight stays at 100%% via GPIO");
+		LOG_ERR("Backlight: pwm_set() failed rc=%d", rc);
 	}
 }
 static K_WORK_DELAYABLE_DEFINE(bl_init_work, backlight_init_work_cb);
 
 static int schedule_backlight_init(void)
 {
-	/* Delay 500 ms to ensure display subsystem is initialized */
 	k_work_schedule(&bl_init_work, K_MSEC(500));
 	return 0;
 }
 SYS_INIT(schedule_backlight_init, APPLICATION, 99);
+
