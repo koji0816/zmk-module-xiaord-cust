@@ -12,7 +12,7 @@
         zmk,kscan = &xiaord_mock_kscan;
         zmk,physical-layout = &xiaord_physical_layout0;
         zephyr,display = &gc9a01_xiao_round_display;
-        zmk,backlight = &backlight;
+        zmk,display-led = &display_backlight;
     };
 
     xiaord_mock_kscan: mock_kscan_0 {

@@ -145,13 +145,40 @@ lv_obj_t *zmk_display_status_screen(void)
 	/* Return the first screen — ZMK calls lv_scr_load() on this */
 	return s_pages[0].screen;
 }
+/*
+ * Display backlight brightness override.
+ *
+ * ZMK's display/main.c calls led_on() when unblanking the display, which
+ * sets brightness to 100%.  We use a delayed work item to call
+ * led_set_brightness() AFTER that led_on() has fired, bringing it down to 75%.
+ */
+#include <zephyr/drivers/led.h>
 
-#include <zmk/backlight.h>
-static int force_backlight_brightness(void)
+#if DT_HAS_CHOSEN(zmk_display_led)
+
+#define DISPLAY_BL_BRIGHTNESS 75  /* percent (0-100) */
+
+static const struct device *bl_dev = DEVICE_DT_GET(DT_PARENT(DT_CHOSEN(zmk_display_led)));
+static const uint8_t bl_idx = DT_NODE_CHILD_IDX(DT_CHOSEN(zmk_display_led));
+
+static void set_backlight_brightness_work_cb(struct k_work *work)
 {
-	/* Force the backlight to 50%, overriding any saved settings */
-	zmk_backlight_set_brt(50);
+	if (device_is_ready(bl_dev)) {
+		led_set_brightness(bl_dev, bl_idx, DISPLAY_BL_BRIGHTNESS);
+		LOG_INF("Backlight set to %d%%", DISPLAY_BL_BRIGHTNESS);
+	} else {
+		LOG_WRN("Backlight device not ready");
+	}
+}
+static K_WORK_DELAYABLE_DEFINE(bl_brightness_work, set_backlight_brightness_work_cb);
+
+static int schedule_backlight_override(void)
+{
+	/* Delay 500 ms so ZMK's unblank_display_cb / led_on() finishes first */
+	k_work_schedule(&bl_brightness_work, K_MSEC(500));
 	return 0;
 }
-/* Run after APPLICATION initialization (priority 90) so ZMK Backlight has already loaded settings */
-SYS_INIT(force_backlight_brightness, APPLICATION, 99);
+SYS_INIT(schedule_backlight_override, APPLICATION, 99);
+
+#endif /* DT_HAS_CHOSEN(zmk_display_led) */
+
