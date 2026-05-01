@@ -149,45 +149,52 @@ lv_obj_t *zmk_display_status_screen(void)
 /*
  * Display backlight brightness control.
  *
- * ZMK turns zmk,display-led on when it unblanks the display, and led_on()
- * drives PWM LEDs at full brightness. Re-apply the configured brightness a few
- * times after startup so the final steady state is the requested duty cycle.
+ * The XIAO Round Display backlight is controlled by D6. Drive that GPIO with
+ * a small software PWM loop instead of routing through zmk,display-led, so
+ * display unblanking cannot reset the duty cycle back to full brightness.
  */
-#include <zephyr/drivers/led.h>
+#include <zephyr/drivers/gpio.h>
 
 #define BACKLIGHT_BRIGHTNESS CONFIG_XIAORD_BACKLIGHT_BRIGHTNESS
-#define BACKLIGHT_RETRY_COUNT 5
+#define BACKLIGHT_PWM_STEPS 8
+#define BACKLIGHT_PWM_TICK_US 500
 
-#if DT_HAS_CHOSEN(zmk_display_led)
-static const struct device *bl_dev = DEVICE_DT_GET(DT_PARENT(DT_CHOSEN(zmk_display_led)));
-static const uint8_t bl_idx = DT_NODE_CHILD_IDX(DT_CHOSEN(zmk_display_led));
-static uint8_t bl_apply_count;
-#endif
+static const struct gpio_dt_spec bl_gpio = GPIO_DT_SPEC_GET(DT_NODELABEL(xiaord_backlight), gpios);
+static uint8_t bl_pwm_step;
+
+static void backlight_pwm_timer_cb(struct k_timer *timer)
+{
+	const uint8_t on_steps =
+		(BACKLIGHT_BRIGHTNESS * BACKLIGHT_PWM_STEPS + 50) / 100;
+	const bool backlight_on = bl_pwm_step < on_steps;
+
+	gpio_pin_set_dt(&bl_gpio, backlight_on ? 1 : 0);
+
+	bl_pwm_step++;
+	if (bl_pwm_step >= BACKLIGHT_PWM_STEPS) {
+		bl_pwm_step = 0;
+	}
+}
+
+K_TIMER_DEFINE(bl_pwm_timer, backlight_pwm_timer_cb, NULL);
 
 static void backlight_init_work_cb(struct k_work *work)
 {
-#if DT_HAS_CHOSEN(zmk_display_led)
-	if (!device_is_ready(bl_dev)) {
-		LOG_WRN("Backlight LED device not ready");
+	if (!device_is_ready(bl_gpio.port)) {
+		LOG_ERR("Backlight GPIO device not ready");
 		return;
 	}
 
-	int rc = led_set_brightness(bl_dev, bl_idx, BACKLIGHT_BRIGHTNESS);
-
-	if (rc == 0) {
-		LOG_INF("Backlight brightness set to %d%%", BACKLIGHT_BRIGHTNESS);
-	} else {
-		LOG_ERR("Backlight led_set_brightness() failed rc=%d", rc);
+	int rc = gpio_pin_configure_dt(&bl_gpio, GPIO_OUTPUT_INACTIVE);
+	if (rc != 0) {
+		LOG_ERR("Backlight GPIO configure failed rc=%d", rc);
+		return;
 	}
 
-	bl_apply_count++;
-	if (bl_apply_count < BACKLIGHT_RETRY_COUNT) {
-		k_work_schedule(k_work_delayable_from_work(work), K_MSEC(500));
-	}
-#else
-	LOG_WRN("No zmk,display-led chosen node; backlight brightness not applied");
-#endif
+	k_timer_start(&bl_pwm_timer, K_NO_WAIT, K_USEC(BACKLIGHT_PWM_TICK_US));
+	LOG_INF("Backlight software PWM started at %d%%", BACKLIGHT_BRIGHTNESS);
 }
+
 static K_WORK_DELAYABLE_DEFINE(bl_init_work, backlight_init_work_cb);
 
 static int schedule_backlight_init(void)
