@@ -153,13 +153,13 @@ lv_obj_t *zmk_display_status_screen(void)
  * a small software PWM loop instead of routing through zmk,display-led, so
  * display unblanking cannot reset the duty cycle back to full brightness.
  */
-#include <zephyr/drivers/gpio.h>
+#include <hal/nrf_gpio.h>
 
 #define BACKLIGHT_BRIGHTNESS CONFIG_XIAORD_BACKLIGHT_BRIGHTNESS
+#define BACKLIGHT_PIN NRF_GPIO_PIN_MAP(1, 11)
 #define BACKLIGHT_PWM_STEPS 8
 #define BACKLIGHT_PWM_TICK_US 500
 
-static const struct gpio_dt_spec bl_gpio = GPIO_DT_SPEC_GET(DT_NODELABEL(xiaord_backlight), gpios);
 static uint8_t bl_pwm_step;
 
 static void backlight_pwm_timer_cb(struct k_timer *timer)
@@ -168,7 +168,7 @@ static void backlight_pwm_timer_cb(struct k_timer *timer)
 		(BACKLIGHT_BRIGHTNESS * BACKLIGHT_PWM_STEPS + 50) / 100;
 	const bool backlight_on = bl_pwm_step < on_steps;
 
-	gpio_pin_set_dt(&bl_gpio, backlight_on ? 1 : 0);
+	nrf_gpio_pin_write(BACKLIGHT_PIN, backlight_on ? 1 : 0);
 
 	bl_pwm_step++;
 	if (bl_pwm_step >= BACKLIGHT_PWM_STEPS) {
@@ -180,16 +180,8 @@ K_TIMER_DEFINE(bl_pwm_timer, backlight_pwm_timer_cb, NULL);
 
 static void backlight_init_work_cb(struct k_work *work)
 {
-	if (!device_is_ready(bl_gpio.port)) {
-		LOG_ERR("Backlight GPIO device not ready");
-		return;
-	}
-
-	int rc = gpio_pin_configure_dt(&bl_gpio, GPIO_OUTPUT_INACTIVE);
-	if (rc != 0) {
-		LOG_ERR("Backlight GPIO configure failed rc=%d", rc);
-		return;
-	}
+	nrf_gpio_cfg_output(BACKLIGHT_PIN);
+	nrf_gpio_pin_write(BACKLIGHT_PIN, 0);
 
 	k_timer_start(&bl_pwm_timer, K_NO_WAIT, K_USEC(BACKLIGHT_PWM_TICK_US));
 	LOG_INF("Backlight software PWM started at %d%%", BACKLIGHT_BRIGHTNESS);

@@ -99,11 +99,4 @@
         };
     };
 
-    xiaord_backlight: xiaord_backlight {
-        gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
-    };
-};
-
-&gpio1 {
-    status = "okay";
 };
