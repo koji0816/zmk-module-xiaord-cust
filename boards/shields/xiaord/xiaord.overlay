@@ -5,6 +5,7 @@
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include <dt-bindings/xiaord/input_codes.h>
 #include <dt-bindings/xiaord/icons.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
 #include "zmk_behaviors.dtsi"
 
 / {
@@ -12,6 +13,7 @@
         zmk,kscan = &xiaord_mock_kscan;
         zmk,physical-layout = &xiaord_physical_layout0;
         zephyr,display = &gc9a01_xiao_round_display;
+        zmk,display-led = &display_backlight;
     };
 
     xiaord_mock_kscan: mock_kscan_0 {
@@ -99,6 +101,14 @@
         };
     };
 
+    backlight: pwm_leds {
+        compatible = "pwm-leds";
+
+        display_backlight: led_0 {
+            pwms = <&pwm1 0 PWM_USEC(1000) PWM_POLARITY_NORMAL>;
+            label = "Display Backlight";
+        };
+    };
 };
 
 #include <dt-bindings/pinctrl/nrf-pinctrl.h>
@@ -123,4 +133,3 @@
     pinctrl-1 = <&pwm1_sleep>;
     pinctrl-names = "default", "sleep";
 };
-

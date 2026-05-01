@@ -147,42 +147,46 @@ lv_obj_t *zmk_display_status_screen(void)
 }
 
 /*
- * Display backlight brightness control — direct PWM approach.
+ * Display backlight brightness control.
  *
- * Pin P1.11 (XIAO D6) controls the display backlight.
- * The PWM1 peripheral is configured via devicetree pinctrl to drive this pin.
- * We MUST NOT call gpio_pin_configure() on P1.11 — that would disconnect the
- * pin from PWM and reconnect it to GPIO, making dimming impossible.
- *
- * The PWM starts outputting immediately at the requested duty cycle,
- * which both turns on the backlight AND dims it to the target brightness.
+ * ZMK turns zmk,display-led on when it unblanks the display, and led_on()
+ * drives PWM LEDs at full brightness. Re-apply the configured brightness a few
+ * times after startup so the final steady state is the requested duty cycle.
  */
-#include <zephyr/drivers/pwm.h>
+#include <zephyr/drivers/led.h>
 
 #define BACKLIGHT_BRIGHTNESS CONFIG_XIAORD_BACKLIGHT_BRIGHTNESS
+#define BACKLIGHT_RETRY_COUNT 5
 
-/* PWM period = 100 µs (10 kHz) — well above visible flicker threshold */
-#define BL_PWM_PERIOD_US 100
+#if DT_HAS_CHOSEN(zmk_display_led)
+static const struct device *bl_dev = DEVICE_DT_GET(DT_PARENT(DT_CHOSEN(zmk_display_led)));
+static const uint8_t bl_idx = DT_NODE_CHILD_IDX(DT_CHOSEN(zmk_display_led));
+static uint8_t bl_apply_count;
+#endif
 
 static void backlight_init_work_cb(struct k_work *work)
 {
-	const struct device *pwm = DEVICE_DT_GET(DT_NODELABEL(pwm1));
-
-	if (!device_is_ready(pwm)) {
-		LOG_ERR("PWM1 device not ready — backlight OFF");
+#if DT_HAS_CHOSEN(zmk_display_led)
+	if (!device_is_ready(bl_dev)) {
+		LOG_WRN("Backlight LED device not ready");
 		return;
 	}
 
-	uint32_t period = PWM_USEC(BL_PWM_PERIOD_US);
-	uint32_t pulse  = period * BACKLIGHT_BRIGHTNESS / 100;
-	int rc = pwm_set(pwm, 0, period, pulse, 0);
+	int rc = led_set_brightness(bl_dev, bl_idx, BACKLIGHT_BRIGHTNESS);
 
 	if (rc == 0) {
-		LOG_INF("Backlight: PWM OK — brightness=%d%% period=%u ns pulse=%u ns",
-			BACKLIGHT_BRIGHTNESS, period, pulse);
+		LOG_INF("Backlight brightness set to %d%%", BACKLIGHT_BRIGHTNESS);
 	} else {
-		LOG_ERR("Backlight: pwm_set() failed rc=%d", rc);
+		LOG_ERR("Backlight led_set_brightness() failed rc=%d", rc);
 	}
+
+	bl_apply_count++;
+	if (bl_apply_count < BACKLIGHT_RETRY_COUNT) {
+		k_work_schedule(k_work_delayable_from_work(work), K_MSEC(500));
+	}
+#else
+	LOG_WRN("No zmk,display-led chosen node; backlight brightness not applied");
+#endif
 }
 static K_WORK_DELAYABLE_DEFINE(bl_init_work, backlight_init_work_cb);
 
