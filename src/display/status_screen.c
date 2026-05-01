@@ -159,7 +159,7 @@ lv_obj_t *zmk_display_status_screen(void)
  */
 #include <zephyr/drivers/pwm.h>
 
-#define BACKLIGHT_BRIGHTNESS 75 /* percent (0 = off, 100 = full) */
+#define BACKLIGHT_BRIGHTNESS CONFIG_XIAORD_BACKLIGHT_BRIGHTNESS
 
 /* PWM period = 100 µs (10 kHz) — well above visible flicker threshold */
 #define BL_PWM_PERIOD_US 100

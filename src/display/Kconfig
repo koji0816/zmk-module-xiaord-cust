@@ -13,3 +13,11 @@ config XIAORD_BG_3
     bool "Background 3"
 
 endchoice
+
+config XIAORD_BACKLIGHT_BRIGHTNESS
+	int "Display backlight brightness percent"
+	range 0 100
+	default 75
+	help
+	  Backlight PWM duty cycle in percent for the XIAO Round Display.
+	  Set to 75 for a dimmer screen than the hardware default.
