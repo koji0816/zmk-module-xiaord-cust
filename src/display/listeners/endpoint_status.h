@@ -40,3 +40,11 @@ void endpoint_status_update_label(lv_obj_t *lbl, struct endpoint_state state);
  * Caller is responsible for positioning the returned object.
  */
 lv_obj_t *create_output_status_label(lv_obj_t *parent, const lv_font_t *font);
+
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+struct zmk_keyboard_status;
+/**
+ * Update endpoint status using Prospector scanner data from keyboard advertisement.
+ */
+void endpoint_status_update_from_scanner(const struct zmk_keyboard_status *kb);
+#endif

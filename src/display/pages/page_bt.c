@@ -31,9 +31,9 @@
 #endif
 // ▲▲▲ ここまで ▲▲▲
 
-/* ── Profile count ──────────────────────────────────────────────────────── */
-
-#if IS_ENABLED(CONFIG_ZMK_BLE)
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+#define BT_PROFILE_COUNT 5
+#elif IS_ENABLED(CONFIG_ZMK_BLE)
 #define BT_PROFILE_COUNT_RAW \
 	(CONFIG_BT_MAX_CONN - CONFIG_ZMK_SPLIT_BLE_CENTRAL_PERIPHERALS)
 #define BT_PROFILE_COUNT MIN(BT_PROFILE_COUNT_RAW, 5)
@@ -77,6 +77,11 @@ static void bt_endpoint_cb(struct endpoint_state state)
 
 static void profile_btn_cb(lv_event_t *e)
 {
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+	ARG_UNUSED(e);
+	/* In Scanner Mode, Prospector only listens - profile switching must occur on keyboard */
+	return;
+#else
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
@@ -93,14 +98,20 @@ static void profile_btn_cb(lv_event_t *e)
 
 	ss_fire_behavior(INPUT_VIRTUAL_ZMK_OUT_BLE);
 	ss_fire_behavior(INPUT_VIRTUAL_ZMK_BT_SEL_0 + idx);
+#endif
 }
 
 static void clr_btn_cb(lv_event_t *e)
 {
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+	ARG_UNUSED(e);
+	return;
+#else
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
 	ss_fire_behavior(INPUT_VIRTUAL_ZMK_BT_CLR);
+#endif
 }
 
 static void home_btn_cb(lv_event_t *e)

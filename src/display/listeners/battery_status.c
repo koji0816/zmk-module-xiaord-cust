@@ -31,6 +31,7 @@ BUILD_ASSERT(IS_ENABLED(CONFIG_ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING),
 #endif
 
 #include "battery_status.h"
+#include "endpoint_status.h"
 
 /* ── Static LVGL object references ─────────────────────────────────────── */
 
@@ -120,6 +121,7 @@ static void update_arc(int idx, int level, bool valid)
 static void scanner_poll_timer_cb(lv_timer_t *timer)
 {
 	int arc_used = 0;
+	struct zmk_keyboard_status *primary_kb = NULL;
 
 	/* Scan all available keyboard slots */
 	for (int slot = 0;
@@ -128,6 +130,10 @@ static void scanner_poll_timer_cb(lv_timer_t *timer)
 		struct zmk_keyboard_status *kb = zmk_status_scanner_get_keyboard(slot);
 		if (!kb || !kb->active) {
 			continue;
+		}
+
+		if (!primary_kb) {
+			primary_kb = kb;
 		}
 
 		/* Arc for this keyboard's own battery */
@@ -145,6 +151,27 @@ static void scanner_poll_timer_cb(lv_timer_t *timer)
 	/* Clear remaining arcs that have no data */
 	for (int i = arc_used; i < BATTERY_ARC_COUNT; i++) {
 		update_arc(i, 0, false);
+	}
+
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+extern void page_home_update_layer(const char *layer_name);
+#endif
+
+	/* Also synchronize endpoint/connection status with the primary keyboard (or clear if none/timed out) */
+	endpoint_status_update_from_scanner(primary_kb);
+
+	/* Also synchronize layer name with the primary keyboard (or clear if none/timed out) */
+	if (primary_kb && primary_kb->active) {
+		char layer_buf[16] = {0};
+		if (primary_kb->data.layer_name[0] != '\0') {
+			memcpy(layer_buf, primary_kb->data.layer_name, sizeof(primary_kb->data.layer_name));
+			layer_buf[sizeof(primary_kb->data.layer_name)] = '\0';
+		} else {
+			snprintf(layer_buf, sizeof(layer_buf), "L%d", primary_kb->data.active_layer);
+		}
+		page_home_update_layer(layer_buf);
+	} else {
+		page_home_update_layer("");
 	}
 }
 

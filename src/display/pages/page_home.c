@@ -36,6 +36,16 @@ static lv_obj_t   *s_date_lbl;
 static lv_obj_t   *s_time_lbl;
 static lv_timer_t *s_timer;
 static lv_obj_t   *s_output_lbl;
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+static lv_obj_t   *s_layer_lbl;
+
+void page_home_update_layer(const char *layer_name)
+{
+	if (s_layer_lbl) {
+		lv_label_set_text(s_layer_lbl, layer_name ? layer_name : "");
+	}
+}
+#endif
 
 /* ── Endpoint status callback ──────────────────────────────────────────── */
 
@@ -96,6 +106,15 @@ static int page_home_create(lv_obj_t *tile)
 	/* ── Output status label ────────────────────────────────────────── */
 	s_output_lbl = create_output_status_label(tile, &lv_font_montserrat_16);
 	lv_obj_align(s_output_lbl, LV_ALIGN_BOTTOM_MID, 0, -37);
+
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+	/* ── Layer label — between time and battery ───────────────────────── */
+	s_layer_lbl = lv_label_create(tile);
+	lv_label_set_text(s_layer_lbl, "");
+	lv_obj_set_style_text_font(s_layer_lbl, &lv_font_montserrat_16, 0);
+	lv_obj_set_style_text_color(s_layer_lbl, lv_palette_main(LV_PALETTE_TEAL), 0);
+	lv_obj_align(s_layer_lbl, LV_ALIGN_CENTER, 0, 4);
+#endif
 
 	/* ── Peripheral battery arc gauges — lower half ─────────────────── */
 	lv_obj_t *periph_bat_arcs[BATTERY_ARC_COUNT > 0 ? BATTERY_ARC_COUNT : 1];

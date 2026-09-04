@@ -55,28 +55,64 @@ static void endpoint_update_cb(struct endpoint_state state)
 	}
 }
 
+#if !IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
 ZMK_DISPLAY_WIDGET_LISTENER(endpoint_status, struct endpoint_state,
 			    endpoint_update_cb, endpoint_get_state)
 ZMK_SUBSCRIPTION(endpoint_status, zmk_endpoint_changed);
 #if IS_ENABLED(CONFIG_ZMK_BLE)
 ZMK_SUBSCRIPTION(endpoint_status, zmk_ble_active_profile_changed);
 #endif
+#endif /* !CONFIG_PROSPECTOR_MODE_SCANNER */
 
 /* ── Public API ─────────────────────────────────────────────────────────── */
 
 void endpoint_status_register_cb(endpoint_status_cb_t cb)
 {
 	if (s_cb_count == 0) {
+#if !IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
 		/* Start the ZMK event subscription on first registration.
 		 * All page create() calls happen synchronously before the
 		 * display work item fires, so subsequent registrations are
 		 * safe — they will all receive the initial state update. */
 		endpoint_status_init();
+#endif
 	}
 	if (s_cb_count < MAX_ENDPOINT_CBS) {
 		s_callbacks[s_cb_count++] = cb;
 	}
 }
+
+#if IS_ENABLED(CONFIG_PROSPECTOR_MODE_SCANNER)
+#include <zmk/status_scanner.h>
+
+void endpoint_status_update_from_scanner(const struct zmk_keyboard_status *kb)
+{
+	struct endpoint_state state = {0};
+
+	if (kb && kb->active) {
+		if (kb->data.status_flags & ZMK_STATUS_FLAG_USB_HID_READY) {
+			state.selected_endpoint.transport = ZMK_TRANSPORT_USB;
+			state.preferred_transport = ZMK_TRANSPORT_USB;
+		} else if (kb->data.status_flags & ZMK_STATUS_FLAG_USB_CONNECTED) {
+			state.selected_endpoint.transport = ZMK_TRANSPORT_NONE;
+			state.preferred_transport = ZMK_TRANSPORT_USB;
+		} else {
+			state.selected_endpoint.transport = ZMK_TRANSPORT_BLE;
+			state.preferred_transport = ZMK_TRANSPORT_BLE;
+			state.selected_endpoint.ble.profile_index = kb->data.profile_slot & 0x07;
+			state.active_profile_connected =
+				(kb->data.status_flags & ZMK_STATUS_FLAG_BLE_CONNECTED) != 0;
+			state.active_profile_bonded =
+				(kb->data.status_flags & ZMK_STATUS_FLAG_BLE_BONDED) != 0;
+		}
+	} else {
+		state.selected_endpoint.transport = ZMK_TRANSPORT_NONE;
+		state.preferred_transport = ZMK_TRANSPORT_NONE;
+	}
+
+	endpoint_update_cb(state);
+}
+#endif
 
 void endpoint_status_update_label(lv_obj_t *lbl, struct endpoint_state state)
 {
